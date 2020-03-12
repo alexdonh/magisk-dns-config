@@ -2,15 +2,22 @@
 
 MODDIR=${0%/*}
 
+if [[ -f /system/etc/resolv.conf && -f $MODDIR/system/etc/resolv.conf ]]; then
+  rm -rf $MODDIR/system/etc
+fi
+
+if [ -f $MODDIR/service.sh ]; then
+  rm -f $MODDIR/service.sh
+fi
+
 if [ -f $MODDIR/nameservers ]; then
   if [ -f /system/etc/resolv.conf ]; then
     mkdir -p $MODDIR/system/etc
-    cat /dev/null >| $MODDIR/system/etc/resolv.conf
-    cat /system/etc/resolv.conf >> $MODDIR/system/etc/resolv.conf 2>&1
+    cp -f /system/etc/resolv.conf $MODDIR/system/etc
     set_perm $MODDIR/system/etc/resolv.conf 0 0 0644
   fi
 
-  cat /dev/null >| $MODDIR/service.sh
+  touch $MODDIR/service.sh
   set_perm $MODDIR/service.sh 0 0 0644
   
   echo '#!/system/bin/sh\n' >> $MODDIR/service.sh 2>&1
@@ -31,7 +38,7 @@ if [ -f $MODDIR/nameservers ]; then
     resetprop net.rmnet1.dns$index $i
     resetprop net.pdpbr1.dns$index $i
 
-    if [[] -f /system/etc/resolv.conf && -f $MODDIR/system/etc/resolv.conf ]]; then
+    if [[ -f /system/etc/resolv.conf && -f $MODDIR/system/etc/resolv.conf ]]; then
       echo "nameserver $i" >> $MODDIR/system/etc/resolv.conf 2>&1
     fi
 
