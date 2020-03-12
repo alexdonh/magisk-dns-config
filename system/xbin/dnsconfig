@@ -1,0 +1,99 @@
+#!/system/bin/sh
+
+ID="DnsConfig"
+
+_name=$(basename $0)
+ls /data >/dev/null 2>&1 || { echo "$ID needs to run as root!"; echo "type 'su' then '$_name'"; exit 1; }
+
+MOUNTPATH="/data/adb/modules"
+MODDIR="$MOUNTPATH/$ID"
+
+[ ! -d $MODDIR ] && { echo "Module not detected!"; exit 1; }
+
+grep_prop() {
+  local REGEX="s/^$1=//p"
+  shift
+  local FILES=$@
+  [ -z "$FILES" ] && FILES='/system/build.prop'
+  sed -n "$REGEX" $FILES 2>/dev/null | head -n 1
+}
+
+VER=$(grep_prop version $MODDIR/module.prop)
+REL=$(grep_prop versionCode $MODDIR/module.prop)
+AUTHOR=$(grep_prop author $MODDIR/module.prop)
+MODNAME=$(grep_prop name $MODDIR/module.prop)
+
+help_me() {
+  cat << EOF
+
+$MODNAME $VER($REL)
+by $AUTHOR
+
+Usage: $_name [options]...
+
+Options:
+  -s [dns server]   set DNS servers
+  -u                unset DNS servers
+  -h                show this message
+EOF
+exit
+}
+
+set_dns() {
+  cat /dev/null >| $MODDIR/nameservers
+  
+  index=0
+  for i in "$@"; do
+    ((index++))
+
+    resetprop net.eth0.dns$index $i
+    resetprop net.dns$index $i
+    resetprop net.ppp0.dns$index $i
+    resetprop net.rmnet0.dns$index $i
+    resetprop net.rmnet1.dns$index $i
+    resetprop net.pdpbr1.dns$index $i
+
+    if [ index -gt 1 ]; then
+      printf ":" >> $MODDIR/nameservers 2>&1
+    fi
+    printf "$i" >> $MODDIR/nameservers 2>&1
+  done
+
+  echo "DNS servers set successfully. $@"
+}
+
+unset_dns() {
+  for i in 1 2 3 4; do
+    resetprop --delete net.eth0.dns$i
+    resetprop --delete net.dns$i
+    resetprop --delete net.ppp0.dns$i
+    resetprop --delete net.rmnet0.dns$i
+    resetprop --delete net.rmnet1.dns$i
+    resetprop --delete net.pdpbr1.dns$i
+  done
+
+  if [ -f $MODDIR/nameservers ]; then
+    rm -f $MODDIR/nameservers
+  fi
+
+  if [ -f $MODDIR/service.sh ]; then
+    rm -f $MODDIR/service.sh
+  fi
+
+  if [[ -f /system/etc/resolv.conf && -f $MODDIR/system/etc/resolv.conf ]]; then
+    rm -f $MODDIR/system/etc/resolv.conf
+  fi
+
+  echo "DNS servers unset successfully."
+}
+
+case "$1" in
+  -s) shift
+    [ "$#" -lt 1 ] && help_me
+    [ "$#" -gt 4 ] && help_me
+    set_dns "$@";;
+  -u) unset_dns;;
+  -h|--help|*) help_me;;
+esac
+
+exit $?

@@ -1,0 +1,6 @@
+id=DnsConfig
+name=DNS Config
+version=v1.0
+versionCode=1
+author=Alex Do
+description=A simple module to configure DNS servers via terminal.
